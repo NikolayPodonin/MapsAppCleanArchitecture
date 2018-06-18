@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">MapsAppCleanArchitecture</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="type_bar">Бар</string>
+    <string name="type_cafe">Кафе</string>
+    <string name="type_book_store">Книжный магазин</string>
+    <string name="type_florist">Цветочный магазин</string>
+    <string name="type_hair_care">Парикмахерская</string>
+    <string name="type_hospital">Мед.учреждение</string>
+    <string name="type_movie_theater">Кинотеатр</string>
+    <string name="type_museum">Музей</string>
+    <string name="type_restaurant">Ресторан</string>
+    <string name="type_pharmacy">Аптека</string>
+    <string name="none">Ничто</string>
+    <string name="type_subway_station">Станция метро</string>
+    <string name="place_address">Адрес</string>
+    <string name="place_work_time">Режим работы</string>
+    <string name="place_open">Открыто</string>
+    <string name="place_close">Закрыто</string>
+    <string name="none_information">Нет информации</string>
+</resources>
