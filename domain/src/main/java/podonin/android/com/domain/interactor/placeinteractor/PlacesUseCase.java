@@ -1,5 +1,6 @@
-package podonin.android.com.domain.interactor;
+package podonin.android.com.domain.interactor.placeinteractor;
 
+import podonin.android.com.domain.interactor.UseCase;
 import podonin.android.com.domain.model.PlacesSearchResultData;
 import podonin.android.com.domain.repository.PlacesRepository;
 import rx.Observable;

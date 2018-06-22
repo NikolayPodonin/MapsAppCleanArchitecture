@@ -2,7 +2,9 @@ package podonin.android.com.mapsappcleanarchitecture.utils;
 
 import android.content.Context;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import podonin.android.com.mapsappcleanarchitecture.R;
@@ -31,6 +33,14 @@ public class PlaceStringResUtil {
 
     public static String getLocalizedTypeName(Context context, String typeName) {
         return convertString(context, typeName);
+    }
+
+    public static List<String> getAllLocalizedTypeNames(Context context) {
+        List<String> types = new ArrayList<>();
+        for (PlaceType type : PlaceType.values()) {
+            types.add(context.getString(type.getStringResource()));
+        }
+        return types;
     }
 
     public static String getCanonicalTypeName(Context context, String typeName) {

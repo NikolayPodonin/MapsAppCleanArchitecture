@@ -7,7 +7,7 @@ import podonin.android.com.domain.model.PlaceData;
 import podonin.android.com.mapsappcleanarchitecture.model.PlaceClusterItem;
 
 public interface MapsView {
-    void addMarker(double lat, double lon, String title);
+    void setCentralMarker(double lat, double lon, String title);
 
     void requestPermission();
 
@@ -18,4 +18,8 @@ public interface MapsView {
     void showClusterItems(Collection<PlaceClusterItem> items);
 
     void showBottomSheetWithData(List<PlaceData> placeDataList);
+
+    void setPlaceType(String localizedType);
+
+    void onChanges();
 }

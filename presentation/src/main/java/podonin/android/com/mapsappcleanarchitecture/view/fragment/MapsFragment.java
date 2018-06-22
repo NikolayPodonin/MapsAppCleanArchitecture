@@ -15,6 +15,11 @@ import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.SeekBar;
+import android.widget.Spinner;
+import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -22,6 +27,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -60,7 +66,13 @@ public class MapsFragment extends Fragment implements MapsView {
     private RecyclerView mRecyclerView;
     private PlacesRvAdapter mRvAdapter;
     private BottomSheetBehavior mBottomSheetBehavior;
-    private String mLocalizedPlaceType = "Кафе";
+    private Spinner mPlaceTypeSpinner;
+    private SeekBar mRadiusSeekBar;
+    private TextView mRadiusTextView;
+
+    private String mCurrentLocalizedPlaceType = "Кафе";
+    private MarkerOptions mCurrentLocation;
+    private int mCurrentRadius = 500;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater layoutInflater, ViewGroup viewGroup, Bundle bundle) {
@@ -69,19 +81,56 @@ public class MapsFragment extends Fragment implements MapsView {
         mBottomSheetBehavior = BottomSheetBehavior.from(view.findViewById(R.id.bottom_sheet));
         mRecyclerView = view.findViewById(R.id.places_recycler_view);
         mMapView.onCreate(bundle);
+        mPlaceTypeSpinner = view.findViewById(R.id.place_type_spinner);
+        mRadiusSeekBar = view.findViewById(R.id.radius_seek_bar);
+        mRadiusTextView = view.findViewById(R.id.radius_text_view);
         return view;
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mMapsPresenter = new MapsPresenter(this);
+        mMapsPresenter = new MapsPresenter(this, getString(R.string.google_maps_key));
         mLocationProviderClient = LocationServices.getFusedLocationProviderClient(Objects.requireNonNull(getContext()));
         mMapView.getMapAsync(mMapReadyCallback);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-        mRvAdapter = new PlacesRvAdapter(mLocalizedPlaceType);
+        mRvAdapter = new PlacesRvAdapter(mCurrentLocalizedPlaceType);
         mRecyclerView.setAdapter(mRvAdapter);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.addAll(PlaceStringResUtil.getAllLocalizedTypeNames(getContext()));
+        mPlaceTypeSpinner.setAdapter(adapter);
+        mPlaceTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                mMapsPresenter.onChoosePlaceType(adapter.getItem(position));
+            }
 
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+        mRadiusSeekBar.setMax(9500);
+
+        mRadiusSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                mCurrentRadius = progress + 500;
+                mRadiusTextView.setText(String.valueOf(mCurrentRadius));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                mRadiusTextView.setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mRadiusTextView.setVisibility(View.INVISIBLE);
+                mMapsPresenter.onChangeRadius();
+            }
+        });
     }
 
     @Override
@@ -110,6 +159,7 @@ public class MapsFragment extends Fragment implements MapsView {
 
     @Override
     public void onDestroy() {
+        mMapsPresenter.onDestroy();
         mMapView.onDestroy();
         super.onDestroy();
     }
@@ -133,20 +183,12 @@ public class MapsFragment extends Fragment implements MapsView {
         mClusterManager.setOnClusterItemClickListener(placeClusterItem -> {
             List<PlaceData> placeDataList = new ArrayList<>();
             placeDataList.add(placeClusterItem.getPlaceData());
-            mMapsPresenter.onNeedDetails(placeDataList, getString(R.string.google_maps_key));
+            mMapsPresenter.onNeedDetails(placeDataList);
             return true;
         });
         mClusterManager.setOnClusterClickListener(cluster -> {
-            if (cluster.getSize() > 2) {
-                int width = getWidth();
-                mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(getBounds(cluster.getItems()), width / 18));
-            } else {
-                List<PlaceData> placeDataList = new ArrayList<>();
-                for (PlaceClusterItem item: cluster.getItems()) {
-                    placeDataList.add(item.getPlaceData());
-                }
-                mMapsPresenter.onNeedDetails(placeDataList, getString(R.string.google_maps_key));
-            }
+            int width = getWidth();
+            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(getBounds(cluster.getItems()), width / 18));
             return true;
         });
         mMap.setOnCameraIdleListener(mClusterManager);
@@ -170,19 +212,37 @@ public class MapsFragment extends Fragment implements MapsView {
 
     @Override
     public void showClusterItems(Collection<PlaceClusterItem> items) {
+        mClusterManager.clearItems();
         mClusterManager.addItems(items);
+        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(getBounds(items), getWidth() / 18));
+    }
+
+    @Override
+    public void setPlaceType(String localizedType) {
+        mCurrentLocalizedPlaceType = localizedType;
     }
 
     @Override
     public void showBottomSheetWithData(List<PlaceData> placeDataList) {
-        mRvAdapter.setData(placeDataList, mLocalizedPlaceType);
+        mRvAdapter.setData(placeDataList, mCurrentLocalizedPlaceType);
         mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
     }
 
     @Override
-    public void addMarker(double lat, double lon, String title) {
+    public void setCentralMarker(double lat, double lon, String title) {
         LatLng location = new LatLng(lat, lon);
-        mMap.addMarker(new MarkerOptions().position(location).title(title));
+        if (mCurrentLocation == null) {
+            mCurrentLocation = new MarkerOptions()
+                    .position(location)
+                    .title(title)
+                    .icon(BitmapDescriptorFactory
+                    .fromResource(R.drawable.ic_me_marker));
+            mMap.addMarker(mCurrentLocation);
+        } else {
+            mCurrentLocation
+                    .position(location)
+                    .title(title);
+        }
     }
 
     @Override
@@ -193,9 +253,7 @@ public class MapsFragment extends Fragment implements MapsView {
                 if (location != null) {
                     mMapsPresenter.onLocationProvided(location.getLatitude(), location.getLongitude());
                 } else {
-                    mMapsPresenter.onNeedPlaces(60.019131, 30.402735, 10000,
-                            PlaceStringResUtil.getCanonicalTypeName(getContext(), getString(R.string.type_cafe)),
-                            getString(R.string.google_maps_key));
+                    mMapsPresenter.onLocationNotProvided();
                 }
             });
         } else {
@@ -214,5 +272,18 @@ public class MapsFragment extends Fragment implements MapsView {
             mMapsPresenter.onPermissionRequestResult(grantResults[0] == PackageManager.PERMISSION_GRANTED);
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    @Override
+    public void onChanges() {
+        if (mCurrentLocation == null
+                || mCurrentLocation.getPosition() == null
+                || mCurrentLocalizedPlaceType == null) {
+            return;
+        }
+        mMapsPresenter.onViewStateChange(mCurrentLocation.getPosition().latitude,
+                mCurrentLocation.getPosition().longitude,
+                mCurrentRadius,
+                PlaceStringResUtil.getCanonicalTypeName(getContext(), mCurrentLocalizedPlaceType));
     }
 }

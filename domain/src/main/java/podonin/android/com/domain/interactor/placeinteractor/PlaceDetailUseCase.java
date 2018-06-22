@@ -1,9 +1,10 @@
-package podonin.android.com.domain.interactor;
+package podonin.android.com.domain.interactor.placeinteractor;
 
 import android.support.annotation.NonNull;
 
 import java.util.List;
 
+import podonin.android.com.domain.interactor.UseCase;
 import podonin.android.com.domain.model.PlaceDetailsResultData;
 import podonin.android.com.domain.repository.PlacesRepository;
 import rx.Observable;

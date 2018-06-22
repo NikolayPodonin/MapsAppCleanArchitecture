@@ -7,9 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import podonin.android.com.data.repository.RepositoryProvider;
-import podonin.android.com.domain.interactor.PlaceDetailUseCase;
-import podonin.android.com.domain.interactor.PlacesNextPageUseCase;
-import podonin.android.com.domain.interactor.PlacesUseCase;
+import podonin.android.com.domain.interactor.placeinteractor.PlaceDetailUseCase;
+import podonin.android.com.domain.interactor.placeinteractor.PlacesNextPageUseCase;
+import podonin.android.com.domain.interactor.placeinteractor.PlacesUseCase;
 import podonin.android.com.domain.interactor.UseCase;
 import podonin.android.com.domain.model.PlaceData;
 import podonin.android.com.domain.model.PlaceDetailsResultData;
@@ -31,13 +31,14 @@ public class MapsPresenter {
     private List<PlaceData> mPlacesDataList = new ArrayList<>();
     private String mApiKey;
 
-    public MapsPresenter(MapsView mapsView) {
+    public MapsPresenter(@NonNull MapsView mapsView, @NonNull String apiKey) {
         mMapsView = mapsView;
         Scheduler mainThread = AndroidSchedulers.mainThread();
         Scheduler backThread = Schedulers.newThread();
         mSearchUseCase = new PlacesUseCase(RepositoryProvider.providePlacesRepository(), backThread, mainThread);
         mNextPageUseCase = new PlacesNextPageUseCase(RepositoryProvider.providePlacesRepository(), backThread, mainThread);
         mDetailsUseCase = new PlaceDetailUseCase(RepositoryProvider.providePlacesRepository(), backThread, mainThread);
+        mApiKey = apiKey;
     }
 
     public void mapIsReady() {
@@ -45,12 +46,9 @@ public class MapsPresenter {
         mMapsView.setUpClusterer();
     }
 
-    public void onNeedPlaces(double lat, double lon, int radius, @NonNull String placeType, @NonNull String apiKey) {
-        if (mApiKey == null) {
-            mApiKey = apiKey;
-        }
+    private void onNeedPlaces(double lat, double lon, int radius, @NonNull String placeType) {
         mPlacesDataList.clear();
-        mSearchUseCase.execute(new PlacesSubscriber(), new PlacesUseCase.Params(lat, lon, radius, placeType, apiKey));
+        mSearchUseCase.execute(new PlacesSubscriber(), new PlacesUseCase.Params(lat, lon, radius, placeType, mApiKey));
     }
 
     private void checkIfHaveNextPage(String pageToken) {
@@ -61,15 +59,12 @@ public class MapsPresenter {
         }
     }
 
-    public void onNeedDetails(@NonNull List<PlaceData> placeDataList, @NonNull String apiKey) {
-        if (mApiKey == null) {
-            mApiKey = apiKey;
-        }
+    public void onNeedDetails(@NonNull List<PlaceData> placeDataList) {
         List<String> placeIds = new ArrayList<>();
         for (PlaceData data : placeDataList) {
             placeIds.add(data.getPlaceId());
         }
-        mDetailsUseCase.execute(new PlaceDetailsSubscriber(), new PlaceDetailUseCase.Params(placeIds, apiKey));
+        mDetailsUseCase.execute(new PlaceDetailsSubscriber(), new PlaceDetailUseCase.Params(placeIds, mApiKey));
     }
 
     public void onNeedRequestPermission() {
@@ -85,12 +80,14 @@ public class MapsPresenter {
     }
 
     public void onLocationProvided(double lat, double lon) {
-        mMapsView.addMarker(lat, lon, "You");
+        mMapsView.setCentralMarker(lat, lon, "You");
+        mMapsView.onChanges();
     }
 
     public void onLocationNotProvided() {
         //TODO
-        mMapsView.addMarker(60.019131, 30.402735, "MUGEN");
+        mMapsView.setCentralMarker(60.019131, 30.402735, "MUGEN");
+        mMapsView.onChanges();
     }
 
     public void onDestroy() {
@@ -111,6 +108,19 @@ public class MapsPresenter {
         mMapsView.showBottomSheetWithData(placeDataList);
     }
 
+    public void onChoosePlaceType(String type) {
+        mMapsView.setPlaceType(type);
+        mMapsView.onChanges();
+    }
+
+    public void onViewStateChange(double lat, double lon, int radius, @NonNull String placeType) {
+        onNeedPlaces(lat, lon, radius, placeType);
+    }
+
+    public void onChangeRadius() {
+        mMapsView.onChanges();
+    }
+
     private class PlacesSubscriber extends Subscriber<PlacesSearchResultData> {
         @Override
         public void onCompleted() {
@@ -125,6 +135,11 @@ public class MapsPresenter {
         public void onNext(PlacesSearchResultData placesSearchResultData) {
             Log.i("NEVERNEVERLATYOUGO", placesSearchResultData.getStatus());
             mPlacesDataList.addAll(placesSearchResultData.getResults());
+            for (PlaceData data : placesSearchResultData.getResults()) {
+                for (String type:data.getTypes()) {
+                    Log.i("TYPE", type);
+                }
+            }
             checkIfHaveNextPage(placesSearchResultData.getNextPageToken());
         }
     }
