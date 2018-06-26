@@ -3,18 +3,21 @@ package podonin.android.com.mapsappcleanarchitecture.presenter;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import podonin.android.com.data.repository.RepositoryProvider;
+import podonin.android.com.domain.interactor.UseCase;
 import podonin.android.com.domain.interactor.placeinteractor.PlaceDetailUseCase;
 import podonin.android.com.domain.interactor.placeinteractor.PlacesNextPageUseCase;
 import podonin.android.com.domain.interactor.placeinteractor.PlacesUseCase;
-import podonin.android.com.domain.interactor.UseCase;
 import podonin.android.com.domain.model.PlaceData;
 import podonin.android.com.domain.model.PlaceDetailsResultData;
 import podonin.android.com.domain.model.PlacesSearchResultData;
 import podonin.android.com.mapsappcleanarchitecture.model.PlaceClusterItem;
+import podonin.android.com.mapsappcleanarchitecture.rx.ErrorSubscriber;
 import podonin.android.com.mapsappcleanarchitecture.view.MapsView;
 import rx.Scheduler;
 import rx.Subscriber;
@@ -108,6 +111,10 @@ public class MapsPresenter {
         mMapsView.showBottomSheetWithData(placeDataList);
     }
 
+    private void onErrorMessage(String message) {
+        mMapsView.showErrorMessage(message);
+    }
+
     public void onChoosePlaceType(String type) {
         mMapsView.setPlaceType(type);
         mMapsView.onChanges();
@@ -121,30 +128,31 @@ public class MapsPresenter {
         mMapsView.onChanges();
     }
 
-    private class PlacesSubscriber extends Subscriber<PlacesSearchResultData> {
-        @Override
-        public void onCompleted() {
-        }
-
-        @Override
-        public void onError(Throwable e) {
-            //TODO
-        }
-
+    private class PlacesSubscriber extends ErrorSubscriber<PlacesSearchResultData> {
         @Override
         public void onNext(PlacesSearchResultData placesSearchResultData) {
             Log.i("NEVERNEVERLATYOUGO", placesSearchResultData.getStatus());
             mPlacesDataList.addAll(placesSearchResultData.getResults());
-            for (PlaceData data : placesSearchResultData.getResults()) {
-                for (String type:data.getTypes()) {
-                    Log.i("TYPE", type);
-                }
-            }
             checkIfHaveNextPage(placesSearchResultData.getNextPageToken());
+        }
+
+        @Override
+        public void onUnexpectedError(@Nullable Throwable e) {
+            onErrorMessage("Unexpected error");
+        }
+
+        @Override
+        public void onNetworkError() {
+            onErrorMessage("Network Error");
+        }
+
+        @Override
+        public void onHttpError(@Nullable Throwable e) {
+            onErrorMessage("Bad HTTP response");
         }
     }
 
-    private class PlaceDetailsSubscriber extends Subscriber<PlaceDetailsResultData> {
+    private class PlaceDetailsSubscriber extends ErrorSubscriber<PlaceDetailsResultData> {
         private List<PlaceData> mPlaceData = new ArrayList<>();
 
         @Override
@@ -153,13 +161,23 @@ public class MapsPresenter {
         }
 
         @Override
-        public void onError(Throwable e) {
-            //TODO
+        public void onNext(PlaceDetailsResultData placeDetailsResultData) {
+            mPlaceData.add(placeDetailsResultData.getResult());
         }
 
         @Override
-        public void onNext(PlaceDetailsResultData placeDetailsResultData) {
-            mPlaceData.add(placeDetailsResultData.getResult());
+        public void onUnexpectedError(@Nullable Throwable e) {
+            onErrorMessage("Unexpected error");
+        }
+
+        @Override
+        public void onNetworkError() {
+            onErrorMessage("Network Error");
+        }
+
+        @Override
+        public void onHttpError(@Nullable Throwable e) {
+            onErrorMessage("Bad HTTP response");
         }
     }
 }

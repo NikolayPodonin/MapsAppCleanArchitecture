@@ -22,4 +22,6 @@ public interface MapsView {
     void setPlaceType(String localizedType);
 
     void onChanges();
+
+    void showErrorMessage(String message);
 }

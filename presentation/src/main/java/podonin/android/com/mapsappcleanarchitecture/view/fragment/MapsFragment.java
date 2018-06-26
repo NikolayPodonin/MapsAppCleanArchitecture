@@ -20,6 +20,7 @@ import android.widget.ArrayAdapter;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -226,6 +227,11 @@ public class MapsFragment extends Fragment implements MapsView {
     public void showBottomSheetWithData(List<PlaceData> placeDataList) {
         mRvAdapter.setData(placeDataList, mCurrentLocalizedPlaceType);
         mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+    }
+
+    @Override
+    public void showErrorMessage(String message) {
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     @Override
